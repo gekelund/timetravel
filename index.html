@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time Travel Ticket</title>
+    <style>
+      :root {
+        --bg: #2f4f56;
+        --ticket-bg: #a56643;
+        --ticket-border: #d0a85e;
+        --text: #1f140f;
+        --heading: #2a1a12;
+        --accent: #fff1d4;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at top, #4e7078 0%, var(--bg) 62%);
+        color: var(--text);
+        font-family: "Courier New", Courier, monospace;
+      }
+
+      body {
+        min-height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        padding: max(0.8rem, env(safe-area-inset-top))
+          max(0.8rem, env(safe-area-inset-right))
+          max(0.8rem, env(safe-area-inset-bottom))
+          max(0.8rem, env(safe-area-inset-left));
+      }
+
+      .ticket {
+        width: min(560px, 100%);
+        max-height: calc(100dvh - 1.6rem);
+        overflow: auto;
+        background: linear-gradient(180deg, #b0734d 0%, var(--ticket-bg) 100%);
+        border: 2px solid var(--ticket-border);
+        border-radius: 14px;
+        box-shadow:
+          0 0 0 1px rgba(255, 238, 205, 0.2),
+          0 20px 45px rgba(21, 16, 12, 0.45);
+        padding: 1.2rem;
+        position: relative;
+        opacity: 0;
+        transform: scale(0.96);
+        filter: blur(8px);
+        transition:
+          opacity 900ms ease,
+          transform 900ms ease,
+          filter 900ms ease;
+      }
+
+      body.show-ticket .ticket {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0);
+      }
+
+      .ticket::before,
+      .ticket::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        width: 24px;
+        height: 24px;
+        background: #32565e;
+        border: 2px solid var(--ticket-border);
+        border-radius: 999px;
+        transform: translateY(-50%);
+      }
+
+      .ticket::before {
+        left: -14px;
+      }
+
+      .ticket::after {
+        right: -14px;
+      }
+
+      .line {
+        border-top: 2px dashed var(--ticket-border);
+        margin: 0.9rem 0 1.05rem;
+      }
+
+      .title {
+        text-align: center;
+        color: var(--heading);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: clamp(1.05rem, 3.2vw, 1.35rem);
+      }
+
+      .row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin: 0.25rem 0;
+      }
+
+      .label {
+        color: var(--heading);
+        min-width: 9ch;
+      }
+
+      .highlight {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .small-gap {
+        margin-top: 0.55rem;
+      }
+
+      .message {
+        white-space: pre-line;
+        line-height: 1.35;
+        margin: 0;
+      }
+
+      .intro {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        overflow: hidden;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            circle at center,
+            rgba(62, 109, 255, 0.2) 0%,
+            rgba(8, 10, 16, 0.95) 58%
+          ),
+          #06080f;
+        opacity: 1;
+        transition: opacity 900ms ease;
+      }
+
+      .intro.done {
+        opacity: 0;
+      }
+
+      .warp-core {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+
+      .memory-stage {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .memory-image {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: min(42vmin, 46vw);
+        height: min(34vmin, 30vh);
+        object-fit: contain;
+        object-position: center;
+        border-radius: 14px;
+        border: 1px solid rgba(222, 233, 255, 0.36);
+        box-shadow:
+          0 0 0 2px rgba(255, 255, 255, 0.08),
+          0 20px 60px rgba(0, 0, 0, 0.55),
+          0 0 35px rgba(130, 172, 255, 0.4);
+        filter: saturate(1.22) contrast(1.22) brightness(1.06);
+        opacity: 0;
+      }
+
+      .memory-image.memory-float {
+        animation: memory-drift var(--life-ms, 1900ms)
+          cubic-bezier(0.18, 0.8, 0.26, 1) forwards;
+      }
+
+      .memory-image.up {
+        --drift-y: -24vmin;
+        --end-rot: -7deg;
+      }
+
+      .memory-image.down {
+        --drift-y: 24vmin;
+        --end-rot: 7deg;
+      }
+
+      .tunnel-ring {
+        position: absolute;
+        border-radius: 999px;
+        border: 2px solid rgba(207, 223, 255, 0.42);
+        box-shadow: 0 0 18px rgba(107, 145, 255, 0.45);
+        animation: rush 2.8s linear infinite;
+      }
+
+      .tunnel-ring.r1 {
+        width: 12vmin;
+        height: 12vmin;
+        animation-delay: 0s;
+      }
+
+      .tunnel-ring.r2 {
+        width: 22vmin;
+        height: 22vmin;
+        animation-delay: 0.35s;
+      }
+
+      .tunnel-ring.r3 {
+        width: 35vmin;
+        height: 35vmin;
+        animation-delay: 0.7s;
+      }
+
+      .tunnel-ring.r4 {
+        width: 55vmin;
+        height: 55vmin;
+        animation-delay: 1.05s;
+      }
+
+      .streaks {
+        position: absolute;
+        inset: -20%;
+        background: repeating-conic-gradient(
+          from 0deg,
+          rgba(113, 180, 255, 0.18) 0deg 1deg,
+          transparent 1deg 8deg
+        );
+        filter: blur(2px);
+        animation: swirl 5s linear infinite;
+      }
+
+      .flash {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at center,
+          rgba(255, 255, 255, 0.95) 0%,
+          transparent 45%
+        );
+        opacity: 0;
+        animation: pulse 2.4s ease-in-out infinite;
+      }
+
+      .intro-copy {
+        position: absolute;
+        bottom: max(1.2rem, env(safe-area-inset-bottom));
+        width: 100%;
+        text-align: center;
+        color: #e5ecff;
+        text-shadow: 0 0 18px rgba(123, 175, 255, 0.6);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: clamp(0.8rem, 2.8vw, 1rem);
+        animation: text-flicker 1s steps(2) infinite;
+        opacity: 0;
+        transition: opacity 300ms ease;
+      }
+
+      .intro.play-memories .intro-copy {
+        opacity: 1;
+      }
+
+      .year-counter {
+        position: absolute;
+        top: max(1rem, env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        color: #f4f7ff;
+        text-shadow:
+          0 0 10px rgba(116, 179, 255, 0.75),
+          0 0 24px rgba(116, 179, 255, 0.55);
+        letter-spacing: 0.14em;
+        font-weight: 700;
+        font-size: clamp(1rem, 4vw, 1.5rem);
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 350ms ease;
+      }
+
+      .intro.play-memories .year-counter {
+        opacity: 1;
+      }
+
+      .startup-hud {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+      }
+
+      .startup-countdown-wrap {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(34vmin, 52vw);
+        height: min(34vmin, 52vw);
+        display: grid;
+        place-items: center;
+      }
+
+      .startup-countdown {
+        font-size: clamp(2.2rem, 12vw, 4.4rem);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        line-height: 1;
+        margin: 0;
+        text-align: center;
+        color: #eef4ff;
+        text-shadow:
+          0 0 10px rgba(124, 181, 255, 0.65),
+          0 0 26px rgba(124, 181, 255, 0.45);
+        animation: countdown-pulse 620ms ease-in-out infinite alternate;
+      }
+
+      .startup-label {
+        position: absolute;
+        bottom: max(1.2rem, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        margin: 0;
+        text-align: center;
+        color: #e5ecff;
+        text-shadow: 0 0 18px rgba(123, 175, 255, 0.6);
+        font-size: clamp(0.85rem, 3vw, 1.1rem);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        animation: text-flicker 1s steps(2) infinite;
+      }
+
+      .particles {
+        position: absolute;
+        inset: 0;
+      }
+
+      .particle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: rgba(201, 229, 255, 0.9);
+        box-shadow: 0 0 8px rgba(132, 195, 255, 0.8);
+        animation: fly 1.6s linear infinite;
+      }
+
+      @keyframes rush {
+        0% {
+          transform: scale(0.08);
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+
+      @keyframes swirl {
+        from {
+          transform: rotate(0deg) scale(1);
+        }
+        to {
+          transform: rotate(360deg) scale(1.08);
+        }
+      }
+
+      @keyframes fly {
+        0% {
+          transform: translate(-50%, -50%) scale(0.3);
+          opacity: 0;
+        }
+        15% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate(var(--tx), var(--ty)) scale(1.9);
+          opacity: 0;
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        85%,
+        100% {
+          opacity: 0;
+        }
+        90% {
+          opacity: 0.65;
+        }
+      }
+
+      @keyframes text-flicker {
+        0%,
+        100% {
+          opacity: 0.9;
+        }
+        50% {
+          opacity: 0.45;
+        }
+      }
+
+      @keyframes countdown-pulse {
+        from {
+          transform: scale(0.96);
+          opacity: 0.78;
+        }
+        to {
+          transform: scale(1.04);
+          opacity: 1;
+        }
+      }
+
+      @keyframes memory-drift {
+        0% {
+          opacity: 0;
+          transform: translate(
+              calc(-50% + var(--start-x, 0vmin)),
+              calc(-50% + var(--start-y, 0vmin))
+            )
+            scale(0.22) rotate(var(--start-rot, 0deg));
+          filter: blur(3px) brightness(0.94);
+        }
+        28% {
+          opacity: 0.95;
+          filter: blur(0.2px) brightness(1.12);
+        }
+        70% {
+          opacity: 0.88;
+          filter: blur(0) brightness(1.04);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(
+              calc(-50% + var(--start-x, 0vmin)),
+              calc(-50% + var(--start-y, 0vmin) + var(--drift-y, 0vmin))
+            )
+            scale(1.26) rotate(var(--end-rot, 8deg));
+          filter: blur(0.05px) brightness(1);
+        }
+      }
+
+      @media (max-width: 430px) {
+        body {
+          place-items: stretch;
+        }
+
+        .ticket {
+          width: 100%;
+          max-height: 100%;
+          border-radius: 12px;
+          padding: 1rem;
+          margin: auto;
+        }
+
+        .ticket::before,
+        .ticket::after {
+          width: 18px;
+          height: 18px;
+          border-width: 1px;
+        }
+
+        .ticket::before {
+          left: -10px;
+        }
+
+        .ticket::after {
+          right: -10px;
+        }
+
+        .title {
+          letter-spacing: 0.06em;
+          font-size: 1.05rem;
+        }
+
+        .row {
+          margin: 0.18rem 0;
+          font-size: 0.96rem;
+        }
+
+        .label {
+          min-width: 8.5ch;
+        }
+
+        .memory-image {
+          width: min(60vmin, 66vw);
+          height: min(68vmin, 65vh);
+          border-radius: 12px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .intro,
+        .tunnel-ring,
+        .streaks,
+        .particle,
+        .flash,
+        .intro-copy,
+        .year-counter,
+        .memory-image.memory-float {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="intro" id="intro" aria-hidden="true">
+      <div class="warp-core">
+        <p class="year-counter" id="year-counter">2026</p>
+        <div class="startup-hud" id="startup-hud">
+          <div class="startup-countdown-wrap">
+            <p class="startup-countdown" id="startup-countdown">3</p>
+          </div>
+          <p class="startup-label">Initializing Time Machine...</p>
+        </div>
+        <div class="memory-stage" id="memory-stage"></div>
+        <div class="streaks"></div>
+        <div class="tunnel-ring r1"></div>
+        <div class="tunnel-ring r2"></div>
+        <div class="tunnel-ring r3"></div>
+        <div class="tunnel-ring r4"></div>
+        <div class="flash"></div>
+        <div class="particles" id="particles"></div>
+      </div>
+    </section>
+
+    <main class="ticket" aria-label="Time travel ticket">
+      <div class="line"></div>
+      <h1 class="title">Time Travel Ticket</h1>
+      <div class="line"></div>
+
+      <p class="row">
+        <span class="label">Passenger:</span> Viveka Lunden Ekelund
+      </p>
+
+      <p class="row small-gap">
+        <span class="label">Departure:</span>
+        <span class="label">2026</span>
+      </p>
+      <p class="row">
+        <span class="label">Destination:</span>
+        <span class="highlight">1956</span>
+      </p>
+
+      <p class="row small-gap"><span class="label">Gate:</span> Memory Lane</p>
+      <p class="row"><span class="label">Seat:</span> VIP - First Class</p>
+      <p class="row">
+        <span class="label">Boarding Time:</span>
+      </p>
+
+      <div class="line"></div>
+
+      <p class="message">
+        Du är härmed inbjuden till en exklusiv resa genom tiden ✨
+        <br />
+        Under resan kommer vi att möta människor och livsöden från olika epoker,
+        och samtidigt göra nedslag i minnen, skratt och ögonblick som format dig
+        till den du är idag. En resa genom ett liv. Ditt liv.
+        <br />
+        Mer information om avgångstid och färdplan kommer inom kort
+      </p>
+
+      <div class="line"></div>
+    </main>
+
+    <script type="module">
+      (function () {
+        const intro = document.getElementById("intro");
+        const particlesHost = document.getElementById("particles");
+        const memoryStage = document.getElementById("memory-stage");
+        const yearCounter = document.getElementById("year-counter");
+        const startupHud = document.getElementById("startup-hud");
+        const startupCountdown = document.getElementById("startup-countdown");
+        const particleCount = 44;
+        const optimizedMemoryFrames = Object.values(
+          import.meta.glob(
+            "/assets/images-optimized/**/*.{jpg,jpeg,JPG,JPEG}",
+            {
+              eager: true,
+              import: "default",
+            },
+          ),
+        );
+        const fallbackMemoryFrames = Object.values(
+          import.meta.glob(
+            "/assets/images/*.{jpg,jpeg,JPG,JPEG,png,webp,avif,gif}",
+            {
+              eager: true,
+              import: "default",
+            },
+          ),
+        );
+        const memoryFrames =
+          optimizedMemoryFrames.length > 0
+            ? optimizedMemoryFrames
+            : fallbackMemoryFrames;
+        const fadeDurationMs = 900;
+        const memoryChangeMs = 520;
+        const memoryLifeMs = 2000;
+        const initialBurstCount = 3;
+        const startupDurationMs = 3000;
+        const countdownStepMs = 900;
+        let memoryIndex = 0;
+        let memoryTimerId = 0;
+        let didFinishIntro = false;
+        const startYear = 2026;
+        const endYear = 1956;
+        const memoryPhaseDurationMs =
+          memoryFrames.length > 0
+            ? Math.max(
+                4200,
+                Math.max(memoryFrames.length - initialBurstCount, 0) *
+                  memoryChangeMs +
+                  memoryLifeMs +
+                  700,
+              )
+            : 3200;
+        const introDurationMs = startupDurationMs + memoryPhaseDurationMs;
+
+        function randomYearBetween(minYear, maxYear) {
+          return Math.floor(Math.random() * (maxYear - minYear + 1)) + minYear;
+        }
+
+        function finishIntro() {
+          if (didFinishIntro) return;
+          didFinishIntro = true;
+          window.clearInterval(memoryTimerId);
+          yearCounter.textContent = String(endYear);
+          intro.classList.add("done");
+          document.body.classList.add("show-ticket");
+
+          window.setTimeout(() => {
+            intro.remove();
+          }, fadeDurationMs + 50);
+        }
+
+        function showNextMemoryFrame() {
+          if (memoryFrames.length === 0) return false;
+          if (memoryIndex >= memoryFrames.length) return false;
+          const memoryImage = document.createElement("img");
+          const direction = memoryIndex % 2 === 0 ? "up" : "down";
+          memoryImage.className = "memory-image memory-float " + direction;
+          memoryImage.src = memoryFrames[memoryIndex];
+          memoryImage.alt = "Memory flash during time travel";
+          memoryImage.decoding = "async";
+          memoryImage.style.setProperty("--life-ms", memoryLifeMs + "ms");
+          memoryImage.style.setProperty(
+            "--start-x",
+            (Math.random() * 14 - 7).toFixed(2) + "vmin",
+          );
+          memoryImage.style.setProperty(
+            "--start-y",
+            (Math.random() * 14 - 7).toFixed(2) + "vmin",
+          );
+          memoryImage.style.setProperty(
+            "--start-rot",
+            (Math.random() * 10 - 5).toFixed(2) + "deg",
+          );
+          memoryStage.appendChild(memoryImage);
+          window.setTimeout(() => {
+            memoryImage.remove();
+          }, memoryLifeMs + 120);
+
+          const isLastFrame = memoryIndex === memoryFrames.length - 1;
+          yearCounter.textContent = isLastFrame
+            ? String(endYear)
+            : String(randomYearBetween(endYear + 1, startYear));
+
+          memoryIndex += 1;
+          return true;
+        }
+
+        for (let i = 0; i < particleCount; i += 1) {
+          const particle = document.createElement("span");
+          particle.className = "particle";
+          const angle = Math.random() * Math.PI * 2;
+          const distance = 58 + Math.random() * 135;
+          const tx = Math.cos(angle) * distance + "vmin";
+          const ty = Math.sin(angle) * distance + "vmin";
+          particle.style.setProperty("--tx", tx);
+          particle.style.setProperty("--ty", ty);
+          particle.style.animationDelay =
+            (Math.random() * 1.4).toFixed(2) + "s";
+          particle.style.opacity = (0.65 + Math.random() * 0.35).toFixed(2);
+          particlesHost.appendChild(particle);
+        }
+
+        yearCounter.textContent = String(startYear);
+
+        window.setTimeout(() => {
+          startupCountdown.textContent = "2";
+        }, countdownStepMs);
+        window.setTimeout(() => {
+          startupCountdown.textContent = "1";
+        }, countdownStepMs * 2);
+        window.setTimeout(() => {
+          startupHud.remove();
+          intro.classList.add("play-memories");
+
+          for (
+            let i = 0;
+            i < Math.min(initialBurstCount, memoryFrames.length);
+            i += 1
+          ) {
+            window.setTimeout(showNextMemoryFrame, i * 120);
+          }
+
+          memoryTimerId = window.setInterval(() => {
+            const didShowFrame = showNextMemoryFrame();
+            if (!didShowFrame) {
+              window.clearInterval(memoryTimerId);
+              window.setTimeout(finishIntro, memoryLifeMs + 160);
+            }
+          }, memoryChangeMs);
+
+          if (memoryFrames.length === 0) {
+            window.setTimeout(finishIntro, 900);
+          }
+        }, startupDurationMs);
+
+        // Safety fallback in case something unexpected blocks normal completion.
+        window.setTimeout(() => {
+          finishIntro();
+        }, introDurationMs);
+      })();
+    </script>
+  </body>
+</html>
