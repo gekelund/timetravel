@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "npm run images:optimize && vite build",
-    "deploy": "gh-pages -d dist",
+    "deploy": "npm run build && gh-pages -d dist --add",
     "images:optimize": "node scripts/optimize-images.mjs",
     "start": "npm run images:optimize && vite",
     "dev": "npm run images:optimize && vite",
